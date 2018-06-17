@@ -1,0 +1,261 @@
+<modification>
+	<id>sms </id>
+	<version>2.2</version>
+	<vqmver>1.0.8</vqmver>
+	<author>OpenCart-ir.com</author>
+	<file name="system/startup.php">
+		<operation>
+			<search position="after"><![CDATA[require_once(DIR_SYSTEM . 'helper/utf8.php'); ]]></search>
+			<add><![CDATA[require_once(DIR_SYSTEM . 'library/sms/sms.php');]]></add>
+		</operation>
+	</file>
+<file name="admin/controller/common/column_left.php">
+        <operation error="skip">
+            <search position="after"><![CDATA[
+  		         $extension = array();
+            ]]></search>
+            <add trim="true"><![CDATA[
+			$sms = array();
+			
+			if ($this->user->hasPermission('access', 'new/sms_send')) {
+				$sms[] = array(
+					'name'	   => 'ارسال پیامک هوشمند',
+					'href'     => $this->url->link('new/sms_send', 'token=' . $this->session->data['token'], true),
+					'children' => array()		
+				);	
+			}
+			
+			if ($this->user->hasPermission('access', 'new/sms_setting')) {
+				$sms[] = array(
+					'name'	   => 'تنظیمات پیامک',
+					'href'     => $this->url->link('new/sms_setting', 'token=' . $this->session->data['token'], true),
+					'children' => array()		
+				);	
+			}
+			
+			if ($sms) {
+				$extension[] = array(
+					'name'	   => 'ماژول پیامک',
+					'href'     => '',
+					'children' => $sms		
+				);		
+			}
+            ]]></add>
+        </operation>
+		
+	
+	</file>
+	
+
+	
+
+	
+	
+	<file name="admin/model/sale/order.php">
+        <operation error="skip">
+            <search position="before"><![CDATA[
+	public function getTotalEmailsByProductsOrdered($products) {
+            ]]></search>
+            <add trim="true"><![CDATA[
+  	
+	public function getTotalTelsByProductsOrdered($products) {
+		$implode = array();
+
+		foreach ($products as $product_id) {
+			$implode[] = "op.product_id = '" . (int)$product_id . "'";
+		}
+
+		$query = $this->db->query("SELECT DISTINCT telephone FROM `" . DB_PREFIX . "order` o LEFT JOIN " . DB_PREFIX . "order_product op ON (o.order_id = op.order_id) WHERE (" . implode(" OR ", $implode) . ") AND o.order_status_id <> '0'");
+
+		return $query->row['total'];
+	}
+		    ]]></add>
+        </operation>
+		<operation error="skip">
+            <search position="before"><![CDATA[
+	public function getEmailsByProductsOrdered($products, $start, $end) {
+            ]]></search>
+            <add trim="true"><![CDATA[
+  		public function getTelsByProductsOrdered($products, $start, $end) {
+		$implode = array();
+
+		foreach ($products as $product_id) {
+			$implode[] = "op.product_id = '" . (int)$product_id . "'";
+		}
+
+		$query = $this->db->query("SELECT DISTINCT telephone FROM `" . DB_PREFIX . "order` o LEFT JOIN " . DB_PREFIX . "order_product op ON (o.order_id = op.order_id) WHERE (" . implode(" OR ", $implode) . ") AND o.order_status_id <> '0' LIMIT " . (int)$start . "," . (int)$end);
+
+		return $query->rows;
+	}
+		    ]]></add>
+        </operation>
+	</file>	
+	
+	
+	
+	
+	
+	<file name="admin/controller/common/login.php">
+        <operation>
+            <search position="after"><![CDATA[
+        	if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) { 
+            ]]></search>
+            <add><![CDATA[
+			if($this->config->get('sms_status')=="1" && $this->config->get('sms_smsadminlogin')=="1" && $this->config->get('sms_smsadminlogin_txt')!=""){
+			$this->sms = new Sms();
+			$login=$this->config->get('sms_smsadminlogin_txt');
+			$message=$this->sms->setsms($login,$this->config->get('config_name'),HTTP_SERVER,"","","","");
+			
+		
+	       $this->sms->send_sms($this->config->get('sms_shopnum'),$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+		
+            ]]></add>
+        </operation>
+	</file>
+	
+	
+	
+
+		
+	
+	<file name="catalog/model/account/customer.php">
+        <operation>
+            <search position="before"><![CDATA[
+      $this->load->language('mail/customer');
+            ]]></search>
+            <add><![CDATA[
+			if($this->config->get('sms_status')=="1" && $this->config->get('sms_smssignup')=="1" && $this->config->get('sms_smssignup_txt')!=""){
+	$this->sms = new Sms();
+			$register=$this->config->get('sms_smssignup_txt');
+			$message=$this->sms->setsms($register,$this->config->get('config_name'),HTTP_SERVER,$this->request->post['email'],$this->request->post['password'],"","");
+			
+			$this->sms->send_sms($this->request->post['telephone'],$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+		        if($this->config->get('sms_status')=="1" && $this->config->get('sms_smsnewsignup')=="1" && $this->config->get('sms_smsnewsignup_txt')!=""){
+			$registerad= $this->config->get('sms_smsnewsignup_txt');
+			$this->sms = new Sms();
+			$message=$this->sms->setsms($registerad,$this->config->get('config_name'),HTTP_SERVER,$this->request->post['email'],$this->request->post['password'],"","");
+			
+			$this->sms->send_sms( $this->config->get('sms_shopnum'),$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+            ]]></add>
+        </operation>
+	</file>
+	
+		
+	<file name="catalog/controller/account/logout.php">
+        <operation>
+            <search position="after"><![CDATA[
+      	if ($this->customer->isLogged()) {
+            ]]></search>
+            <add><![CDATA[
+			if($this->config->get('sms_status')=="1" && $this->config->get('sms_smslogout')=="1" && $this->config->get('sms_smslogout_txt')!=""){
+	$this->sms = new Sms();
+			$logout=$this->config->get('sms_smslogout_txt');
+			$message=$this->sms->setsms($logout,$this->config->get('config_name'),HTTP_SERVER,"","","","");
+			
+			$this->load->model('account/customer');
+			$customer_info = $this->model_account_customer->getCustomer($this->customer->getId());
+			$this->sms->send_sms($customer_info ['telephone'],$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+			
+            ]]></add>
+        </operation>
+	</file>
+	
+		<file name="catalog/controller/account/login.php">
+        <operation>
+            <search position="after"><![CDATA[
+        if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate()) {
+            ]]></search>
+            <add><![CDATA[
+			if($this->config->get('sms_status')=="1" && $this->config->get('sms_smslogin')=="1" && $this->config->get('sms_smslogin_txt')!=""){
+			$this->sms = new Sms();
+			$this->load->model('account/customer');		
+			$customer_info = $this->model_account_customer->getCustomer($this->customer->getId());
+			$login=$this->config->get('sms_smslogin_txt');
+			$message=$this->sms->setsms($login,$this->config->get('config_name'),HTTP_SERVER,$this->request->post['email'],$this->request->post['password'],"","");
+			
+		
+	       $this->sms->send_sms($customer_info ['telephone'],$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+		
+            ]]></add>
+        </operation>
+	</file>
+		
+		<file name="catalog/model/checkout/order.php">
+        <operation>
+            <search position="before"><![CDATA[
+          	$text  = sprintf($language->get('text_new_greeting'), html_entity_decode($order_info['store_name'], ENT_QUOTES, 'UTF-8')) . "\n\n";
+            ]]></search>
+            <add><![CDATA[
+			if($this->config->get('sms_status')=="1" && $this->config->get('sms_smsplaced')=="1" && $this->config->get('sms_smsplaced_txt')!=""){
+			$this->sms = new Sms();
+			$order=$this->config->get('sms_smsplaced_txt');
+			$text="";
+			foreach ($order_product_query->rows as $result) {
+					$text .=  $result['name'] .' با تعداد '. $result['quantity'] .' با قیمت '.  html_entity_decode($this->currency->format($result['total'], $order_info['currency_code'], $order_info['currency_value']), ENT_NOQUOTES, 'UTF-8') . "\n";	
+				}
+				 $txt = str_replace( "#order_pro#", $text , $order );
+				 $text_total="";
+			foreach ($order_total_query->rows as $total) {
+						$text_total .= $total['title'] . ': ' . html_entity_decode($this->currency->format($total['value'], $order_info['currency_code'], $order_info['currency_value']), ENT_NOQUOTES, 'UTF-8') . "\n";
+					}
+			 $txt = str_replace( "#order_total#", $text_total , $txt );
+			 $txt = str_replace( "#order_rah#", $comment, $txt );
+			$message=$this->sms->setsms($txt,$this->config->get('config_name'),HTTP_SERVER,"","",$order_id,"");
+	       $this->sms->send_sms($order_info['telephone'],$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+			if( $this->config->get('sms_status')=="1" && $this->config->get('sms_smsneworder')=="1" && $this->config->get('sms_smsneworder_txt')!=""){
+				$this->sms = new Sms();
+			$order= $this->config->get('sms_smsneworder_txt');
+				$text="";
+			foreach ($order_product_query->rows as $result) {
+					$text .=  $result['name'] .' با تعداد '. $result['quantity'] .' با قیمت '.  html_entity_decode($this->currency->format($result['total'], $order_info['currency_code'], $order_info['currency_value']), ENT_NOQUOTES, 'UTF-8') . "\n";	
+				}
+				 $txt = str_replace( "#order_pro#", $text , $order );
+			 $text_total="";
+			foreach ($order_total_query->rows as $total) {
+						$text_total .= $total['title'] . ': ' . html_entity_decode($this->currency->format($total['value'], $order_info['currency_code'], $order_info['currency_value']), ENT_NOQUOTES, 'UTF-8') . "\n";
+					}
+			 $txt = str_replace( "#order_total#", $text_total , $txt );
+			 $txt = str_replace( "#order_rah#", $comment, $txt );
+			$namefamil=$order_info['firstname'].' '.$order_info['lastname'];
+			 $txt = str_replace( "#name#", $namefamil , $txt );
+			 $txt = str_replace( "#customer_tel#", $order_info['telephone'], $txt );
+			 
+			$message=$this->sms->setsms($txt,$this->config->get('config_name'),HTTP_SERVER,"","",$order_id,"");
+			$this->sms->send_sms( $this->config->get('sms_shopnum'),$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+            ]]></add>
+        </operation>
+		  <operation>
+            <search position="after"><![CDATA[
+          	if ($order_info['order_status_id'] && $order_status_id && $notify) {
+            ]]></search>
+            <add><![CDATA[
+			if($this->config->get('sms_status')=="1" && $this->config->get('sms_smsproccessed')=="1" &&  $this->config->get('sms_smsproccessed_txt')!=""){
+		$this->sms = new Sms();
+			$order_status=$this->config->get('sms_smsproccessed_txt');
+			$order_status_query = $this->db->query("SELECT * FROM " . DB_PREFIX . "order_status WHERE order_status_id = '" . (int)$order_status_id . "' AND language_id = '" . (int)$order_info['language_id'] . "'");
+
+			
+				
+			if ($order_status_query->num_rows) {
+				
+				$order_status_info= $order_status_query->row['name'] ;
+			}
+		$message=$this->sms->setsms($order_status,$this->config->get('config_name'),HTTP_SERVER,"","",$order_id,$order_status_info);
+		   
+		   
+	       $this->sms->send_sms($order_info['telephone'],$message,$this->config->get('sms_api'),$this->config->get('sms_samane_sms'),$this->config->get('sms_from'),$this->config->get('sms_sample'));
+			}
+		
+            ]]></add>
+        </operation>
+	</file>
+		
+	
+</modification>
